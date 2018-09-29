@@ -1,12 +1,12 @@
 # PSFEditor (PC Screen Font Editor)
 
-PC Screen Font Editor is an application that can open [PSF][https://wiki.osdev.org/PC_Screen_Font] version 1 and 2 files and edit them.
+PC Screen Font Editor is an application that can open [PSF](https://wiki.osdev.org/PC_Screen_Font) version 1 and 2 files and edit them.
 You can save the resulting as a MIF (Memory Initialization Format) file to initialize a ROM memory
 in Verilog.
 
 ## Screenshot
 
-![PSFEditor][psfeditor.png]
+![PSFEditor][psfeditor.png?raw=true]
 
 ### Compiling
 
@@ -28,7 +28,7 @@ make
 
 ## License
 
-This project is licensed under the [BSD License][https://opensource.org/licenses/BSD-3-Clause].
+This project is licensed under the [BSD License](https://opensource.org/licenses/BSD-3-Clause).
 
 ## Limitations
 
