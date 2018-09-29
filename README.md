@@ -6,7 +6,7 @@ in Verilog.
 
 ## Screenshot
 
-![PSFEditor][psfeditor.png?raw=true]
+![PSFEditor](psfeditor.png?raw=true)
 
 ### Compiling
 
