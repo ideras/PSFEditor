@@ -122,18 +122,28 @@
      <x>0</x>
      <y>0</y>
      <width>650</width>
-     <height>29</height>
+     <height>23</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
     <property name="title">
      <string>Fi&amp;le</string>
     </property>
+    <widget class="QMenu" name="menuSave_font_as">
+     <property name="title">
+      <string>Save font as</string>
+     </property>
+     <property name="icon">
+      <iconset resource="../rc/psfeditor.qrc">
+       <normaloff>:/images/save_as.png</normaloff>:/images/save_as.png</iconset>
+     </property>
+     <addaction name="actionExport_VerilogMIF"/>
+     <addaction name="actionExport_PSFFile"/>
+    </widget>
     <addaction name="separator"/>
-    <addaction name="actionLoadROMImageFont"/>
-    <addaction name="actionLoadPSF"/>
-    <addaction name="actionSave_font_to_ROM_image"/>
-    <addaction name="actionSave_as"/>
+    <addaction name="actionOpenFontFile"/>
+    <addaction name="actionSaveFont"/>
+    <addaction name="menuSave_font_as"/>
     <addaction name="separator"/>
     <addaction name="actionExitApp"/>
    </widget>
@@ -152,10 +162,8 @@
    <attribute name="toolBarBreak">
     <bool>false</bool>
    </attribute>
-   <addaction name="actionLoadROMImageFont"/>
-   <addaction name="actionLoadPSF"/>
-   <addaction name="actionSave_font_to_ROM_image"/>
-   <addaction name="actionSave_as"/>
+   <addaction name="actionOpenFontFile"/>
+   <addaction name="actionSaveFont"/>
    <addaction name="separator"/>
    <addaction name="actionCopy_glyph"/>
    <addaction name="actionCut_glyph"/>
@@ -170,39 +178,18 @@
     <string>Exit aplication</string>
    </property>
   </action>
-  <action name="actionLoadROMImageFont">
+  <action name="actionSaveFont">
    <property name="icon">
-    <iconset resource="psfeditor.qrc">
-     <normaloff>:/images/open_mif.png</normaloff>:/images/open_mif.png</iconset>
-   </property>
-   <property name="text">
-    <string>&amp;Load font from ROM image</string>
-   </property>
-  </action>
-  <action name="actionSave_font_to_ROM_image">
-   <property name="icon">
-    <iconset resource="psfeditor.qrc">
+    <iconset resource="../rc/psfeditor.qrc">
      <normaloff>:/images/save.png</normaloff>:/images/save.png</iconset>
    </property>
    <property name="text">
     <string>&amp;Save font ...</string>
    </property>
   </action>
-  <action name="actionSave_as">
-   <property name="icon">
-    <iconset resource="psfeditor.qrc">
-     <normaloff>:/images/save_as.png</normaloff>:/images/save_as.png</iconset>
-   </property>
-   <property name="text">
-    <string>Save &amp;font as ...</string>
-   </property>
-   <property name="toolTip">
-    <string>Save the font into another file</string>
-   </property>
-  </action>
   <action name="actionCopy_glyph">
    <property name="icon">
-    <iconset resource="psfeditor.qrc">
+    <iconset resource="../rc/psfeditor.qrc">
      <normaloff>:/images/copy.png</normaloff>:/images/copy.png</iconset>
    </property>
    <property name="text">
@@ -217,7 +204,7 @@
   </action>
   <action name="actionCut_glyph">
    <property name="icon">
-    <iconset resource="psfeditor.qrc">
+    <iconset resource="../rc/psfeditor.qrc">
      <normaloff>:/images/cut.png</normaloff>:/images/cut.png</iconset>
    </property>
    <property name="text">
@@ -232,7 +219,7 @@
   </action>
   <action name="actionPaste_glyph">
    <property name="icon">
-    <iconset resource="psfeditor.qrc">
+    <iconset resource="../rc/psfeditor.qrc">
      <normaloff>:/images/paste.png</normaloff>:/images/paste.png</iconset>
    </property>
    <property name="text">
@@ -245,13 +232,23 @@
     <string>Ctrl+V</string>
    </property>
   </action>
-  <action name="actionLoadPSF">
+  <action name="actionOpenFontFile">
    <property name="icon">
-    <iconset resource="psfeditor.qrc">
-     <normaloff>:/images/open_psf.png</normaloff>:/images/open_psf.png</iconset>
+    <iconset resource="../rc/psfeditor.qrc">
+     <normaloff>:/images/open.png</normaloff>:/images/open.png</iconset>
    </property>
    <property name="text">
-    <string>Load font from &amp;PSF file</string>
+    <string>Open font file ...</string>
+   </property>
+  </action>
+  <action name="actionExport_VerilogMIF">
+   <property name="text">
+    <string>Verilog MIF</string>
+   </property>
+  </action>
+  <action name="actionExport_PSFFile">
+   <property name="text">
+    <string>PSF File</string>
    </property>
   </action>
  </widget>
@@ -265,7 +262,7 @@
   </customwidget>
  </customwidgets>
  <resources>
-  <include location="psfeditor.qrc"/>
+  <include location="../rc/psfeditor.qrc"/>
  </resources>
  <connections>
   <connection>

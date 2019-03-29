@@ -6,7 +6,7 @@
 #include <QMainWindow>
 #include <QListWidgetItem>
 #include <QFile>
-#include "fontglyph.h"
+#include "psf.h"
 #include "psfutil.h"
 
 namespace Ui {
@@ -23,28 +23,27 @@ public:
 
 private slots:
     void on_actionExitApp_triggered();
-    void on_actionLoadROMImageFont_triggered();
     void on_listFontGlyphs_itemSelectionChanged();
-    void on_actionSave_font_to_ROM_image_triggered();
-    void on_actionSave_as_triggered();
+    void on_actionOpenFontFile_triggered();
+    void on_actionSaveFont_triggered();
+    void on_actionExport_VerilogMIF_triggered();
+    void on_actionExport_PSFFile_triggered();
     void on_glyphChanged();
     void on_actionCopy_glyph_triggered();
     void on_actionCut_glyph_triggered();
     void on_actionPaste_glyph_triggered();
 
-    void on_actionLoadPSF_triggered();
-
 private:
     void updateGlyphListWidget();
     void updateFileInfo();
-    void saveFontToFile();
+    bool saveFontToFile();
 
 private:
+    FileType fileType;
     QFile currentFile;
     bool fileModified;
     Ui::MainWindow *ui;
-    std::vector<FontGlyph> glyphs;
-    PSF::SymbInfo symbInfo;
+    PSFFont font;
 };
 
 #endif // MAINWINDOW_H

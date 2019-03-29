@@ -8,6 +8,7 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include "qglyphlistwidgetitemdelegate.h"
+#include "dlgsymbinfo.h"
 #include "psfutil.h"
 
 MainWindow::MainWindow(QWidget *parent) :
@@ -37,181 +38,19 @@ void MainWindow::on_actionExitApp_triggered() {
     qApp->exit();
 }
 
-inline int loadGlyph(int& lineIndex, FontGlyph& glyph, QTextStream& in) {
-    for (int i = 0; i < 16; i++) {
-        if (in.atEnd()) {
-            return -1;
-        }
-        QString line = in.readLine();
-        bool ok;
-        uint8_t rowPixels = line.toUShort(&ok, 16);
-        if (!ok) {
-            return -2;
-        }
-
-        glyph[i] = rowPixels;
-        lineIndex++;
-    }
-    return 0;
-}
-
-void MainWindow::on_actionLoadROMImageFont_triggered()
-{
-    QFileDialog::Options options;
-    QString selectedFilter;
-    QFileInfo fi(currentFile.fileName());
-    QString filePath = fi.absolutePath();
-
-    if (filePath.isEmpty()) {
-        filePath = "/home/ideras/classes/Computer_Organization/Project-MIPS32SOC/mif";
-    }
-
-    QString fileName = QFileDialog::getOpenFileName(this,
-                                 tr("Open ROM image font file"),
-                                 filePath,
-                                 tr("ROM image font file (*.mif);;All Files (*)"),
-                                 &selectedFilter,
-                                 options);
-    if (fileName.isEmpty()) {
-        return;
-    }
-
-    currentFile.setFileName(fileName);
-
-    if(!currentFile.open(QIODevice::ReadOnly)) {
-        QMessageBox::information(0, "error", currentFile.errorString());
-        return;
-    }
-
-    QTextStream in(&currentFile);
-
-    int line = 0;
-    this->ui->listFontGlyphs->clear();
-    this->ui->widgetGlyphEditor->setFontGlyph(nullptr);
-
-    glyphs.clear();
-    while(!in.atEnd()) {
-        FontGlyph glyph(8, 16);
-        int res = loadGlyph(line, glyph, in);
-
-        if (res < 0) {
-            switch (res) {
-            case -1:
-                QMessageBox::information(this, "Error reading file", "Too few lines in file");
-                break;
-            case -2:
-                QMessageBox::information(this, "Error reading file", "Invalid hex number at line " + QString::number(line));
-                break;
-            }
-            break;
-        }
-
-        glyphs.push_back(std::move(glyph));
-
-        if (glyphs.size() > 256) {
-            QMessageBox::information(this, "Error reading file", "Too many lines in file");
-            break;
-        }
-    }
-    currentFile.close();
-
-    if (glyphs.size() < 256) {
-        QMessageBox::information(this, "Warning", "Too few lines in file, expected 256.");
-    } else {
-        symbInfo.width = 8;
-        symbInfo.height = 16;
-        symbInfo.count = 256;
-        updateGlyphListWidget();
-    }
-}
-
-uint32_t glyphRow(uint8_t *&gdata, int rowBytes) {
-    uint32_t result;
-
-    switch (rowBytes) {
-        case 1:
-            result = *gdata++;
-            break;
-        case 2:
-            result = ((uint32_t)(*gdata) << 8) | (uint32_t)(*(gdata + 1));
-            gdata += 2;
-            break;
-        case 3:
-            result =  ((uint32_t)(*gdata) << 16)
-                    | ((uint32_t)(*(gdata + 1)) << 8)
-                    | (uint32_t)(*(gdata + 2));
-            gdata += 3;
-            break;
-        case 4:
-            result =  ((uint32_t)(*gdata) << 24)
-                    | ((uint32_t)(*(gdata + 1)) << 16)
-                    | ((uint32_t)(*(gdata + 2)) << 8)
-                    | (uint32_t)(*(gdata + 3));
-            gdata += 4;
-            break;
-    }
-    return result;
-}
-
-void MainWindow::on_actionLoadPSF_triggered()
-{
-    QFileDialog::Options options;
-    QString selectedFilter;
-    QFileInfo fi(currentFile.fileName());
-    QString filePath = fi.absolutePath();
-
-    if (filePath.isEmpty()) {
-        filePath = "/home/ideras/develop/fonts";
-    }
-
-    QString fileName = QFileDialog::getOpenFileName(this,
-                                 tr("Open PSF file"),
-                                 filePath,
-                                 tr("PSF file (*.psf);;All Files (*)"),
-                                 &selectedFilter,
-                                 options);
-    if (fileName.isEmpty()) {
-        return;
-    }
-
-    fi.setFile(fileName);
-    currentFile.setFileName(fi.absolutePath() + "/" + fi.baseName() + ".mif");
-
-    std::vector<uint8_t> rawFontData;
-    int res = PSF::loadFile(fileName.toStdString().c_str(), symbInfo, rawFontData);
-    if (res < 0) {
-        QMessageBox::information(this, "Error reading file", "Cannot open file '" + fileName + "'");
-        return;
-    }
-
-    int rowBytes = (symbInfo.width + 7) / 8;
-    uint8_t *gd = rawFontData.data();
-
-    glyphs.clear();
-    glyphs.reserve(symbInfo.count);
-    for (size_t i = 0; i < symbInfo.count; i++) {
-        FontGlyph fg(symbInfo.width, symbInfo.height);
-
-        for (size_t ri = 0; ri < symbInfo.height; ri++) {
-            uint32_t rd = glyphRow(gd, rowBytes);
-            fg[ri] = rd;
-        }
-        glyphs.push_back(std::move(fg));
-    }
-    updateGlyphListWidget();
-}
-
 void MainWindow::updateGlyphListWidget() {
     ui->listFontGlyphs->clear();
-    for (size_t i = 0; i < glyphs.size(); i++) {
+    for (unsigned i = 0; i < font.getNumGlyphs(); i++) {
+        PSFGlyph& glyph = font.getGlyph(i);
+
         QString itmText = QString::number(i);
         QListWidgetItem *item = new QListWidgetItem(itmText);
         item->setData(Qt::DisplayRole, QVariant(itmText));
-        item->setData(Qt::UserRole, QVariant::fromValue(&glyphs[i]));
+        item->setData(Qt::UserRole, QVariant::fromValue(&glyph));
         ui->listFontGlyphs->addItem(item);
     }
     ui->listFontGlyphs->setCurrentRow(0);
-    ui->lblFontTitle->setText(QString("Font Symbols (%1x%2)").arg(symbInfo.width).arg(symbInfo.height));
+    ui->lblFontTitle->setText(QString("Font Symbols (%1x%2)").arg(font.getWidth()).arg(font.getHeight()));
     ui->listFontGlyphs->repaint();
 
     fileModified = false;
@@ -226,44 +65,36 @@ void MainWindow::on_listFontGlyphs_itemSelectionChanged()
         QListWidgetItem *selItem = lstItems.at(0);
         QString itmText = selItem->text();
 
-        int index = itmText.toUShort();
-        ui->widgetGlyphEditor->setFontGlyph(&glyphs[index]);
+        int index = itmText.toShort();
+        ui->widgetGlyphEditor->setCurrGlyphIndex(index);
         ui->widgetGlyphEditor->repaint();
         ui->widgetGlyphEditor->enableEditor(true);
-        ui->lblCurrentSymbolIndex->setText("Current symbol index: " + QString::number(index));
+
+        const PSFGlyph& glyph = font.getGlyph(index);
+        const std::vector<unsigned int>& uvals = glyph.getUnicodeValues();
+
+        QString s = "";
+        bool first = true;
+        for (auto v : uvals) {
+            if (first) {
+                first = false;
+            } else {
+                s += " ";
+            }
+            if (v == 0xFFFE) {
+                s += ";";
+            } else {
+                s += "U+" + QString::number(v, 16);
+            }
+        }
+        QString lblText = "Current symbol <b>" + QString::number(index);
+        if (s != "") { lblText += " : " + s; }
+        lblText += "</b>";
+
+        ui->lblCurrentSymbolIndex->setText(lblText);
     } else {
         ui->widgetGlyphEditor->enableEditor(false);
         ui->lblCurrentSymbolIndex->setText("");
-    }
-}
-
-void MainWindow::on_actionSave_font_to_ROM_image_triggered()
-{
-    if (!currentFile.fileName().isEmpty()) {
-        saveFontToFile();
-        QMessageBox::information(this, "Message", "File saved to " + currentFile.fileName());
-    }
-}
-
-void MainWindow::on_actionSave_as_triggered()
-{
-    QFileDialog::Options options;
-    QString selectedFilter;
-
-    if (currentFile.fileName().isEmpty())
-        return;
-
-    QString fileName = QFileDialog::getSaveFileName(this,
-                                 tr("Save font to ROM image"),
-                                 "/media/ideras/WINDOWS_D/Development/Verilog-Devel/MIPS32CPU/mips32vgacolor_vtest/",
-                                 tr("ROM image font file (*.mif);;All Files (*)"),
-                                 &selectedFilter,
-                                 options);
-
-    if (!fileName.isEmpty()) {
-        currentFile.setFileName(fileName);
-        saveFontToFile();
-        QMessageBox::information(this, "Message", "File saved to " + fileName);
     }
 }
 
@@ -282,67 +113,207 @@ void MainWindow::updateFileInfo()
         windowTitle += " *";
     }
 
-    this->statusBar()->showMessage(currentFile.fileName());
-    this->setWindowTitle(windowTitle);
+    statusBar()->showMessage(currentFile.fileName());
+    setWindowTitle(windowTitle);
 }
 
-void MainWindow::saveFontToFile()
+void MainWindow::on_actionOpenFontFile_triggered()
 {
-    if(!currentFile.open(QIODevice::WriteOnly)) {
-        QMessageBox::information(0, "Error", currentFile.errorString());
+    QFileDialog::Options options;
+    QString selectedFilter;
+    QFileInfo fi(currentFile);
+    QString currFilePath = fi.absolutePath();
+
+    if (currFilePath.isEmpty()) {
+        currFilePath = QDir::homePath();
+    }
+
+    QString filePath = QFileDialog::getOpenFileName(this,
+                                 tr("Open Font file"),
+                                 currFilePath,
+                                 tr("Verilog MIF (*.mif);;PSF file (*.psf)"),
+                                 &selectedFilter,
+                                 options);
+    if (filePath.isEmpty()) {
         return;
     }
-    QTextStream out(&currentFile);
+    if (selectedFilter.isEmpty()) {
+        QMessageBox::information(this, "Error", "Unknown file '" + filePath + "'. Please select a MIF or PSF file");
+        return;
+    }
+    fi.setFile(filePath);
+    currentFile.setFileName(fi.absolutePath());
 
-    for (int i = 0; i < 256; i++) {
-        out << glyphs[i].toHexString();
+    bool success;
+    if (selectedFilter.contains("PSF")) {
+        fileType = FileType::PSF;
+        success = font.loadFromFile(filePath.toStdString().c_str());
+    } else {
+        DlgSymbInfo *dlg = new DlgSymbInfo(this);
+        if (dlg->exec() != QDialog::Accepted) {
+            return;
+        }
+        int gw = dlg->getWidth();
+        int gh = dlg->getHeight();
+        dlg->deleteLater();
+
+        fileType = FileType::MIF;
+        success = PSF::loadFromVerilogMif(font, gw, gh, filePath.toStdString());
+    }
+
+    if (!success) {
+        QMessageBox::information(this, "Error", "Error loading file '" + filePath + "'");
+        return;
+    }
+    ui->widgetGlyphEditor->setFont(&font);
+    updateGlyphListWidget();
+}
+
+void MainWindow::on_actionSaveFont_triggered()
+{
+    if (currentFile.fileName().isEmpty()) {
+        return;
+    }
+    if (!saveFontToFile()) {
+        return;
+    }
+    QMessageBox::information(this, "Message", "File saved to " + currentFile.fileName());
+}
+
+bool MainWindow::saveFontToFile()
+{
+    QString fileName = currentFile.fileName();
+
+    if (fileType == FileType::MIF) {
+        if (!PSF::saveToVerilogMif(font, fileName.toStdString())) {
+            QMessageBox::information(nullptr, "Error", "Cannot write file '" + fileName + "'");
+            return false;
+        }
+    } else {
+        if (!font.saveToFile(qPrintable(fileName))) {
+            QMessageBox::information(nullptr, "Error", "Cannot write file '" + fileName + "'");
+            return false;
+        }
     }
     fileModified = false;
     updateFileInfo();
 
-    currentFile.close();
+    return true;
+}
+
+void MainWindow::on_actionExport_VerilogMIF_triggered()
+{
+    QFileDialog::Options options;
+    QString selectedFilter;
+
+    if (currentFile.fileName().isEmpty()) {
+        return;
+    }
+
+    QFileInfo fi(currentFile);
+    QString filePath = QFileDialog::getSaveFileName(this,
+                                 tr("Save as Verilog MIF"),
+                                 fi.path(),
+                                 tr("Verilog MIF (*.mif);;All Files (*)"),
+                                 &selectedFilter,
+                                 options);
+    if (filePath.isEmpty()) {
+        return;
+    }
+
+    fi.setFile(filePath);
+    QString fileName = fi.fileName();
+    if (!fileName.endsWith(".mif")) {
+        fileName += ".mif";
+        fi.setFile(fi.dir(), fileName);
+        filePath = fi.absolutePath();
+    }
+
+    currentFile.setFileName(filePath);
+    fileType = FileType::MIF;
+    if (!saveFontToFile()) {
+        return;
+    }
+    QMessageBox::information(this, "Message", "File saved to " + filePath);
+}
+
+void MainWindow::on_actionExport_PSFFile_triggered()
+{
+    QFileDialog::Options options;
+    QString selectedFilter;
+
+    if (currentFile.fileName().isEmpty()) {
+        return;
+    }
+
+    QFileInfo fi(currentFile);
+    QString filePath = QFileDialog::getSaveFileName(this,
+                                 tr("Save as PSF file"),
+                                 fi.path(),
+                                 tr("PSF files (*.psf);;All Files (*)"),
+                                 &selectedFilter,
+                                 options);
+
+    if (filePath.isEmpty()) {
+        return;
+    }
+
+    fi.setFile(filePath);
+    QString fileName = fi.fileName();
+    if (!fileName.endsWith(".psf")) {
+        fileName += ".psf";
+        fi.setFile(fi.dir(), fileName);
+        filePath = fi.absolutePath();
+    }
+
+    currentFile.setFileName(filePath);
+    fileType = FileType::PSF;
+
+    if (!saveFontToFile()) {
+        return;
+    }
+    QMessageBox::information(this, "Message", "File saved to " + filePath);
 }
 
 void MainWindow::on_actionCopy_glyph_triggered()
 {
-    FontGlyph *fg = ui->widgetGlyphEditor->getCurrGlyph();
+    if (ui->widgetGlyphEditor->hasGlyph()) {
+        const PSFGlyph& glyph = ui->widgetGlyphEditor->getCurrGlyph();
 
-    if (fg != nullptr) {
         QClipboard *clipboard = QApplication::clipboard();
-        QImage img = fg->toImage();
+        QImage img = PSF::glyphToImage(glyph);
         clipboard->setImage(img);
     }
 }
 
 void MainWindow::on_actionCut_glyph_triggered()
 {
-    FontGlyph *fg = ui->widgetGlyphEditor->getCurrGlyph();
+    if (ui->widgetGlyphEditor->hasGlyph()) {
+        PSFGlyph& glyph = ui->widgetGlyphEditor->getCurrGlyph();
 
-    if (fg != nullptr) {
         on_actionCopy_glyph_triggered();
-        fg->clear();
+        glyph.init(&font);
         ui->widgetGlyphEditor->repaint();
     }
 }
 
 void MainWindow::on_actionPaste_glyph_triggered()
 {
-    FontGlyph *fg = ui->widgetGlyphEditor->getCurrGlyph();
-
-    if (fg == nullptr) {
+    if (!ui->widgetGlyphEditor->hasGlyph()) {
         return;
     }
 
     QClipboard *clipboard = QApplication::clipboard();
     const QMimeData *clip_data = clipboard->mimeData();
+    PSFGlyph& glyph = ui->widgetGlyphEditor->getCurrGlyph();
 
     if (clip_data->hasText()) {
         QString text = clip_data->text();
-        fg->updateFromText(text);
+        PSF::setGlyphFromText(glyph, text);
         ui->widgetGlyphEditor->repaint();
     } else if (clip_data->hasImage()) {
        QImage img = clipboard->image();
-       fg->updateFromImage(img);
+       PSF::setGlyphFromImage(glyph, img);
        ui->widgetGlyphEditor->repaint();
     }
 }

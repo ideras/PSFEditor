@@ -32,16 +32,20 @@ SOURCES += src/main.cpp\
         src/mainwindow.cpp \
     src/qfontglypheditor.cpp \
     src/qglyphlistwidgetitemdelegate.cpp \
-    src/fontglyph.cpp \
-    src/psfutil.cpp
+    src/psfutil.cpp \
+    src/psf.cpp \
+    src/dlgsymbinfo.cpp
 
 HEADERS  += include/mainwindow.h \
     include/qfontglypheditor.h \
     include/qglyphlistwidgetitemdelegate.h \
-    include/fontglyph.h \
-    include/psfutil.h
+    include/psfutil.h \
+    include/psf.h \
+    include/mini_utf8.h \
+    include/dlgsymbinfo.h
 
-FORMS    += ui/mainwindow.ui
+FORMS    += ui/mainwindow.ui \
+    ui/dlgsymbinfo.ui
 
 RESOURCES += \
     rc/psfeditor.qrc

@@ -5,13 +5,7 @@
 #include <list>
 #include <QWidget>
 #include <QMouseEvent>
-#include "fontglyph.h"
-
-/*
- * All the glyphs in PSF version 1 are 8x16 pixels
- */
-#define GLYPH_WIDTH  8
-#define GLYPH_HEIGHT 16
+#include "psf.h"
 
 /*
  * One glyph pixel will be zoomed to 24x24 pixels on the editor
@@ -23,17 +17,25 @@ class QFontGlyphEditor : public QWidget
 {
     Q_OBJECT
 public:
-    explicit QFontGlyphEditor(QWidget *parent = 0);
+    explicit QFontGlyphEditor(QWidget *parent = nullptr);
     ~QFontGlyphEditor() {}
 
-    void setFontGlyph(FontGlyph *glyph) { this->glyph = glyph; repaint(); }
-    FontGlyph *getCurrGlyph() { return glyph; }
+    void setFont(PSFFont *_font) { font = _font; }
+
+    void setCurrGlyphIndex(int idx) {
+        glyph_index = idx;
+        repaint();
+    }
+
+    PSFFont *getFont() { return font; }
+    PSFGlyph& getCurrGlyph() { return font->getGlyph(glyph_index); }
+    int getCurrGlyphIndex() { return  glyph_index; }
 
     void enableEditor(bool enable) {
         editor_enabled = enable;
     }
 
-    bool hasGlyph() { return glyph != nullptr; }
+    bool hasGlyph() { return ((font != nullptr) && (glyph_index != -1)); }
     bool isGlyphEdited() { return glyph_edited; }
 
 private:
@@ -56,7 +58,8 @@ private:
     bool drag_started;
     bool editor_enabled;
     bool glyph_edited;
-    FontGlyph *glyph;
+    PSFFont *font;
+    int glyph_index;
 };
 
 #endif // QFONTGLYPHEDITOR_H

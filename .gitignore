@@ -24,3 +24,6 @@
 Makefile
 *.pro.user*
 .qmake*
+
+# Visual studio code
+.vscode/*

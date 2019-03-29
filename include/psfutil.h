@@ -3,61 +3,28 @@
 
 #include <cstdint>
 #include <vector>
+#include <QString>
+#include <QImage>
+#include <QMetaType>
+#include "psf.h"
 
-/* PSF 1 format */
-#define PSF1_MAGIC0     0x36
-#define PSF1_MAGIC1     0x04
-
-#define PSF1_MODE512    0x01
-#define PSF1_MODEHASTAB 0x02
-#define PSF1_MODEHASSEQ 0x04
-#define PSF1_MAXMODE    0x05
-
-#define PSF1_SEPARATOR  0xFFFF
-#define PSF1_STARTSEQ   0xFFFE
-
-struct psf1_header {
-    unsigned char magic[2];     /* Magic number */
-    unsigned char mode;         /* PSF font mode */
-    unsigned char charsize;     /* Character size */
-};
-
-/* PSF 2 format */
-#define PSF2_MAGIC0     0x72
-#define PSF2_MAGIC1     0xb5
-#define PSF2_MAGIC2     0x4a
-#define PSF2_MAGIC3     0x86
-
-/* bits used in flags */
-#define PSF2_HAS_UNICODE_TABLE 0x01
-
-/* max version recognized so far */
-#define PSF2_MAXVERSION 0
-
-/* UTF8 separators */
-#define PSF2_SEPARATOR  0xFF
-#define PSF2_STARTSEQ   0xFE
-
-struct psf2_header {
-    unsigned char magic[4];
-    unsigned int version;
-    unsigned int headersize;    /* offset of bitmaps in file */
-    unsigned int flags;
-    unsigned int length;        /* number of glyphs */
-    unsigned int charsize;      /* number of bytes for each character */
-    unsigned int height, width; /* max dimensions of glyphs */
-    /* charsize = height * ((width + 7) / 8) */
+enum class FileType {
+    MIF, // Verilog MIF
+    PSF  // PSF File
 };
 
 namespace PSF {
-    // Every char bitmap is width x height pixels
-    struct SymbInfo {
-        size_t width;  // pixels
-        size_t height; // pixels
-        size_t sizeBytes;   // Size in bytes
-        size_t count;   // Number of symbols
-    };
+    // Glyph utilities
+    bool setGlyphFromText(PSFGlyph& glyph, const QString& txt);
+    bool setGlyphFromImage(PSFGlyph& glyph, const QImage& img);
+    QString glyphToHexString(const PSFGlyph& glyph);
+    QImage glyphToImage(const PSFGlyph& glyph);
 
-    int loadFile(const char *filename, SymbInfo &symbInfo, std::vector<uint8_t> &rawFontData);
+    // Verilog MIF utilities
+    bool saveToVerilogMif(const PSFFont& font, const std::string& filename);
+    bool loadFromVerilogMif(PSFFont& font, int gw, int gh, const std::string& filename);
 }
+
+Q_DECLARE_METATYPE(PSFGlyph*)
+
 #endif // PSFUTIL_H

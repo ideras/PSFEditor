@@ -1,71 +1,165 @@
-#include "psfutil.h"
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
+#include <iostream>
 #include <fstream>
+#include <QtGlobal>
+#include "psfutil.h"
 
 namespace PSF {
 
-int loadFile(const char *filename, SymbInfo &symbInfo, std::vector<uint8_t>& rawFontData) {
-    std::ifstream in(filename, std::ios::in);
+bool setGlyphFromText(PSFGlyph &glyph, const QString &txt) {
+    unsigned w = glyph.getFont()->getWidth();
+    unsigned y = 0;
 
-    if (!in.is_open()) {
-        return -1;
+    QStringList sl = txt.split('\n');
+    foreach (QString s, sl) {
+        bool ok;
+        uint32_t val = 0;
+
+        if (s.startsWith("0b")) {
+            s = s.mid(2);
+            val = s.toUInt(&ok, 2);
+        } else if (s.startsWith("0x")) {
+            s = s.mid(2);
+            val = s.toUInt(&ok, 16);
+        } else {
+            ok = false;
+        }
+
+        if (!ok) {
+            return false;
+        }
+        unsigned x = w - 1;
+        for (unsigned i = 0; i < w; i++) {
+            glyph.setPixel(x, y, (val & (1 << i)) != 0);
+            x--;
+        }
+        y++;
+    }
+    return true;
+}
+
+bool setGlyphFromImage(PSFGlyph &glyph, const QImage &img) {
+    int gw = static_cast<int>(glyph.getWidth());
+    int gh = static_cast<int>(glyph.getHeight());
+    int w = qMin(img.width(), gw);
+    int h = qMin(img.height(), gh);
+
+    for (int y = 0; y < h; y ++) {
+        for (int x = 0; x < w; x++) {
+            QRgb rgb = img.pixel(x, y);
+            int a = qAlpha(rgb);
+            int r = qRed(rgb);
+            int g = qGreen(rgb);
+            int b = qBlue(rgb);
+
+            unsigned grey = ((r + g + b) / 3);
+            unsigned pix = img.hasAlphaChannel()? ((a >= 128) && (grey < 128)) : (grey < 128);
+            glyph.setPixel(x, y, pix);
+        }
     }
 
-    unsigned char magic_bytes[4];
-    in.read(reinterpret_cast<char *>(magic_bytes), sizeof(magic_bytes));
+    return true;
+}
 
-    if (magic_bytes[0] == PSF1_MAGIC0 && magic_bytes[1] == PSF1_MAGIC1) {
-        struct psf1_header header;
+QString glyphToHexString(const PSFGlyph &glyph) {
+    unsigned width = glyph.getWidth();
+    unsigned height = glyph.getHeight();
+    QString result = "";
 
-        in.seekg(0);
-        in.read(reinterpret_cast<char *>(&header), sizeof(struct psf1_header));
+    int dig = (width + 3) / 4;
 
-        symbInfo.width = 8;
-        symbInfo.height = header.charsize;
-        symbInfo.sizeBytes = header.charsize;
-        symbInfo.count = 256;
-
-        int total_bytes = symbInfo.count * header.charsize;
-        rawFontData.resize(total_bytes);
-
-        in.read(reinterpret_cast<char *>(rawFontData.data()), total_bytes);
-        int total_read = in.gcount();
-
-        if (total_read != total_bytes) {
-            in.close();
-            return -2;
+    for (unsigned y = 0; y < height; y ++) {
+        uint32_t rv = 0;
+        for (unsigned x = 0; x < width; x++) {
+            if (glyph.getPixel(x, y) != 0) {
+                rv |= 1u << (width - (x + 1));
+            }
         }
-    } else if (magic_bytes[0] == PSF2_MAGIC0 && magic_bytes[1] == PSF2_MAGIC1 &&
-               magic_bytes[2] == PSF2_MAGIC2 && magic_bytes[3] == PSF2_MAGIC3) {
-        struct psf2_header header;
-
-        in.seekg(0);
-        in.read(reinterpret_cast<char *>(&header), sizeof(struct psf2_header));
-
-        symbInfo.width = header.width;
-        symbInfo.height = header.height;
-        symbInfo.sizeBytes = header.charsize;
-        symbInfo.count = header.length;
-
-        int total_bytes = header.length * header.charsize;
-        rawFontData.resize(total_bytes);
-
-        in.read(reinterpret_cast<char *>(rawFontData.data()), total_bytes);
-        int total_read = in.gcount();
-
-        if (total_read != total_bytes) {
-            in.close();
-            return -2;
-        }
-    } else {
-        in.close();
-        return -3;
+        result += QString("%1").arg(rv, dig, 16, QChar('0')).toUpper() + '\n';
     }
 
+    return result;
+}
+
+QImage glyphToImage(const PSFGlyph &glyph) {
+    unsigned width = glyph.getWidth();
+    unsigned height = glyph.getHeight();
+    QImage img(width, height, QImage::Format_RGB32);
+
+    for (unsigned y = 0; y < height; y ++) {
+        for (unsigned x = 0; x < width; x++) {
+            if (glyph.getPixel(x, y)) {
+                img.setPixel(x, y, qRgb(0x0, 0x0, 0x0));
+            } else {
+                img.setPixel(x, y, qRgb(0xff, 0xff, 0xff));
+            }
+        }
+    }
+
+    return img;
+}
+
+bool saveToVerilogMif(const PSFFont &font, const std::string& filename) {
+    std::ofstream out(filename, std::ios::out | std::ios::trunc);
+
+    if(!out.is_open()) {
+        return false;
+    }
+
+    for (int i = 0; i < 256; i++) {
+       out << glyphToHexString(font.getGlyph(i)).toStdString();
+    }
+    out.close();
+    return true;
+}
+
+bool loadFromVerilogMif(PSFFont &font, int gw, int gh, const std::string &filename) {
+    std::ifstream in(filename, std::ios::in|std::ios::binary);
+
+    if(!in.is_open()) {
+        return false;
+    }
+
+    int index = 0;
+    int line = 1;
+
+    font.init(PSFVersion::V1, gw, gh);
+
+    while(!in.eof()) {
+        PSFGlyph& glyph = font.getGlyph(index);
+        std::string text;
+
+        glyph.init(&font);
+        for (int y = 0; (y < gh) && !in.eof(); y++) {
+            std::getline(in, text);
+            line++;
+            unsigned val;
+
+            try { val = std::stoi(text, nullptr, 16); }
+            catch (std::invalid_argument& e) {
+                std::cerr << "Invalid hex value '" << text << "' at line " << line << "\n";
+                return false;
+            }
+            for (int x = 0; x < gw; x++) {
+                unsigned pix = (val & (1 << (gw - x - 1))) != 0;
+                if (!glyph.setPixel(x, y, pix)) {
+                    std::cerr << "Glyph set pixel failed\n";
+                    return false;
+                }
+            }
+        }
+        index++;
+        if (index > 255) {
+            std::cerr << "WARNING: Too many lines in file '" << filename << "'\n";
+            break;
+        }
+    }
     in.close();
-    return 0;
+
+    if (index < 256) {
+        std::cerr << "WARNING: Too few lines in file '" << filename << "'."
+                  << " Expected 256 found " << index << '\n';
+    }
+    return true;
 }
 
 }

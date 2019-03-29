@@ -4,21 +4,21 @@
 #include <QPainter>
 #include "qglyphlistwidgetitemdelegate.h"
 #include "qfontglypheditor.h"
-#include "fontglyph.h"
+#include "psfutil.h"
 
 void QGlyphListWidgetItemDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const
 {
     QString itm_text = index.data().toString();
     QVariant itmv = index.data(Qt::UserRole);
-    FontGlyph *fg = itmv.value<FontGlyph *>();
+    PSFGlyph *glyph = itmv.value<PSFGlyph *>();
 
     if (option.state & QStyle::State_Selected) {
         painter->fillRect(option.rect, option.palette.highlight());
     }
 
     int x, y;
-    size_t glw = fg->getWidth();
-    size_t glh = fg->getHeight();
+    size_t glw = glyph->getFont()->getWidth();
+    size_t glh = glyph->getFont()->getHeight();
 
     int start_x = option.rect.x() + option.fontMetrics.width(itm_text) + 8;
     int start_y = option.rect.y() + (option.rect.height() - glh) / 2;
@@ -28,10 +28,10 @@ void QGlyphListWidgetItemDelegate::paint(QPainter *painter, const QStyleOptionVi
     painter->drawText(r, Qt::AlignVCenter | Qt::AlignLeft, itm_text);
 
     y = start_y;
-    for (size_t row = 0; row < glh; row ++) {
+    for (unsigned gy = 0; gy < glh; gy ++) {
         x = start_x;
-        for (size_t col = 0; col < glw; col++) {
-            if ((*fg)[row][col]) {
+        for (unsigned gx = 0; gx < glw; gx++) {
+            if (glyph->getPixel(gx, gy) != 0) {
                 painter->drawPoint(x, y);
             }
             x++;
@@ -43,9 +43,10 @@ void QGlyphListWidgetItemDelegate::paint(QPainter *painter, const QStyleOptionVi
 QSize QGlyphListWidgetItemDelegate::sizeHint(const QStyleOptionViewItem &option, const QModelIndex &index) const
 {
     QVariant itmv = index.data(Qt::UserRole);
-    FontGlyph *fg = itmv.value<FontGlyph *>();
+    PSFGlyph *glyph = itmv.value<PSFGlyph *>();
+    unsigned gh = glyph->getFont()->getHeight();
     int w = option.rect.width();
-    int h = qMax(option.fontMetrics.height() + 4, static_cast<int>(fg->getHeight()) + 4);
+    int h = qMax(option.fontMetrics.height() + 4, static_cast<int>(gh) + 4);
 
     return QSize(w, h);
 }
