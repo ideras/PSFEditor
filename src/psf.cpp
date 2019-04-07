@@ -21,7 +21,7 @@ void PSFFont::init(PSFVersion version, unsigned int width, unsigned int height)
     this->version = version;
 
     if (version == PSFVersion::V1) {
-        header.psf1.charsize = height;
+        header.psf1.charsize = static_cast<unsigned char>(height);
         header.psf1.magic[0] = PSF1_MAGIC0;
         header.psf1.magic[1] = PSF1_MAGIC1;
         glyphv.resize(256);
@@ -45,13 +45,13 @@ static int psf_read_byte(std::ifstream& file, unsigned int *bval)
 		perror(__func__);
 		return 0;
 	}
-	*bval = (unsigned int) rd & 0xff;
+    *bval = static_cast<unsigned int>(rd) & 0xff;
 	return 1;
 }
 
 static int psf_write_byte(std::ofstream& file, unsigned int bval)
 {
-    file.put(bval & 0xff);
+    file.put(static_cast<char>(bval & 0xff));
     if (file.bad()) {
 		perror(__func__);
 		return 0;
@@ -295,16 +295,16 @@ bool PSFFont::writeGlyphs(std::ofstream &file) const
             file.write(reinterpret_cast<const char *>(glyph.data.data()), glyphsize);
             if (file.bad()) {
                 perror(__func__);
-                return 0;
+                return false;
             }
         } else {
             if (!writeDummy(file, glyphsize)) {
                 perror(__func__);
-                return 0;
+                return false;
             }
         }
     }
-    return 1;
+    return true;
 }
 
 bool PSFFont::psf1WriteUnicodeVals(std::ofstream &file) const

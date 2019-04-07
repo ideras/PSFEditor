@@ -112,34 +112,34 @@ bool saveToVerilogMif(const PSFFont &font, const std::string& filename) {
     return true;
 }
 
-bool loadFromVerilogMif(PSFFont &font, int gw, int gh, const std::string &filename) {
+bool loadFromVerilogMif(PSFFont &font, unsigned gw, unsigned gh, const std::string &filename) {
     std::ifstream in(filename, std::ios::in|std::ios::binary);
 
     if(!in.is_open()) {
         return false;
     }
 
-    int index = 0;
-    int line = 1;
+    unsigned index = 0;
+    unsigned line = 1;
 
-    font.init(PSFVersion::V1, gw, gh);
+    PSFVersion v = (gw <= 8)? PSFVersion::V1 : PSFVersion::V2;
+    font.init(v, gw, gh);
 
     while(!in.eof()) {
-        PSFGlyph& glyph = font.getGlyph(index);
+        PSFGlyph& glyph = font.addGlyph(index);
         std::string text;
 
-        glyph.init(&font);
-        for (int y = 0; (y < gh) && !in.eof(); y++) {
+        for (unsigned y = 0; (y < gh) && !in.eof(); y++) {
             std::getline(in, text);
             line++;
             unsigned val;
 
             try { val = std::stoi(text, nullptr, 16); }
-            catch (std::invalid_argument& e) {
+            catch (std::invalid_argument&) {
                 std::cerr << "Invalid hex value '" << text << "' at line " << line << "\n";
                 return false;
             }
-            for (int x = 0; x < gw; x++) {
+            for (unsigned x = 0; x < gw; x++) {
                 unsigned pix = (val & (1 << (gw - x - 1))) != 0;
                 if (!glyph.setPixel(x, y, pix)) {
                     std::cerr << "Glyph set pixel failed\n";

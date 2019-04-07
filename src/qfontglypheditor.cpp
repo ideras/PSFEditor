@@ -4,101 +4,98 @@
 
 QFontGlyphEditor::QFontGlyphEditor(QWidget *parent) :
     QWidget(parent),
-    prev_sel_index(-1),
+    dot_width(DEFAULT_DOT_WIDTH),
+    dot_height(DEFAULT_DOT_HEIGHT),
+    prev_sel_point(0, 0),
     drag_started(false),
     editor_enabled(false),
     glyph_edited(false),
     glyph_index(-1)
 { }
 
-QSize QFontGlyphEditor::getDotSize() {
+void QFontGlyphEditor::updateCanvasInfo() {
     if (!hasGlyph()) {
-        return QSize(DOT_WIDTH, DOT_HEIGHT);
+        return;
     }
-    unsigned gw = font->getWidth();
-    unsigned gh = font->getHeight();
-    QSize gridSize(gw * DOT_WIDTH, gh * DOT_HEIGHT);
-    
-    unsigned dotW = DOT_WIDTH;
-    unsigned dotH = DOT_HEIGHT;
-    
-    if (gridSize.width() > size().width()) {
-        dotW = size().width() / gw;
+    int dotW = dot_width;
+    int dotH = dot_height;
+
+    canvas.setGlyphSize(font->getWidth(), font->getHeight());
+    canvas.setDotSize(dotW, dotH);
+    if (canvas.width() > size().width()) {
+        dotW = size().width() / canvas.glyphWidth();
     }
-    if (gridSize.height() > size().height()) {
-        dotH = size().height() / gh;
+    if (canvas.height() > size().height()) {
+        dotH = size().height() / canvas.glyphHeight();
     }
-    return QSize(dotW, dotH);
+    canvas.setDotSize(dotW, dotH);
+    int x = (size().width() - canvas.width()) / 2;
+    int y = (size().height() - canvas.height()) / 2;
+    canvas.setPos(x, y);
 }
 
-void QFontGlyphEditor::checkPoint(QPoint pt) {
-    unsigned gw = font->getWidth();
-    unsigned gh = font->getHeight();
-    QSize dotSize = getDotSize();
-    QSize canvasSize (gw * dotSize.width(), gh * dotSize.height());
-    int startX = (size().width() - canvasSize.width()) / 2;
-    int startY = (size().height() - canvasSize.height()) / 2;
-    int x, y = startY;
-
-    PSFGlyph& glyph = getCurrGlyph();
-    for (unsigned gy = 0; gy < gh; gy ++) {
-        x = startX;
-        for (unsigned gx = 0; gx < gw; gx++) {
-            QRect r(x + 1, y + 1, dotSize.width(), dotSize.height());
+bool QFontGlyphEditor::findPointInCanvas(const QPoint &pt, QPoint &cpt) {
+    if (!hasGlyph()) {
+        return false;
+    }
+    int y = canvas.y1();
+    for (int gy = 0; gy < canvas.glyphHeight(); gy ++) {
+        int x = canvas.x1();
+        for (int gx = 0; gx < canvas.glyphWidth(); gx++) {
+            QRect r(x + 1, y + 1, canvas.dotWidth(), canvas.dotHeight());
 
             if (r.contains(pt)) {
-                if (prev_sel_index != (gy  * gw + gx)) {
-                    prev_sel_index = gy  * gw + gx;
-                    glyph_edited = true;
-                    unsigned val = glyph.getPixel(gx, gy);
-                    glyph.setPixel(gx, gy, !val);
-                    repaint();
-                }
-                return;
+                cpt.setX(gx);
+                cpt.setY(gy);
+                return true;
             }
-            x += dotSize.width();
+            x += canvas.dotWidth();
         }
-        y += dotSize.height();
+        y += canvas.dotHeight();
     }
+    return false;
+}
+
+void QFontGlyphEditor::flipGlyphPoint(const QPoint &gpt) {
+    PSFGlyph& glyph = getCurrGlyph();
+    unsigned gx = static_cast<unsigned>(gpt.x());
+    unsigned gy = static_cast<unsigned>(gpt.y());
+    glyph.setPixel(gx, gy, !glyph.getPixel(gx, gy));
+    repaint();
 }
 
 void QFontGlyphEditor::drawGlyph(QPainter &painter) {
-    unsigned gw = font->getWidth();
-    unsigned gh = font->getHeight();
-    QSize dotSize = getDotSize();
-    QSize canvasSize (gw * dotSize.width(), gh * dotSize.height());
-    int startX = (size().width() - canvasSize.width()) / 2;
-    int startY = (size().height() - canvasSize.height()) / 2;
-    int x, y = startY;
-
     const PSFGlyph& glyph = getCurrGlyph();
-    for (unsigned gy = 0; gy < gh; gy ++) {
-        x = startX;
-        for (unsigned gx = 0; gx < gw; gx++) {
+    int y = canvas.y1();
+    for (int gy = 0; gy < canvas.glyphHeight(); gy ++) {
+        int x = canvas.x1();
+        for (int gx = 0; gx < canvas.glyphWidth(); gx++) {
+            QRect r(x + 1, y + 1, canvas.dotWidth(), canvas.dotHeight());
+
             // Glyph dot
             if (glyph.getPixel(gx, gy) != 0) {
-                painter.fillRect(x + 1, y + 1, dotSize.width(), dotSize.height(), QColor(255, 140, 0));
+                painter.fillRect(r, QColor(255, 140, 0));
             } else {
-                painter.fillRect(x + 1, y + 1, dotSize.width(), dotSize.height(), QColor(0, 43, 54));
+                painter.fillRect(r, QColor(0, 43, 54));
             }
 
             // X grid line
             painter.setPen(QPen(QColor(192, 192, 192), 1, Qt::SolidLine));
-            painter.drawLine(x, startY, x, startY + canvasSize.height());
+            painter.drawLine(x, canvas.y1(), x, canvas.y2());
 
-            x += dotSize.width();
+            x += canvas.dotWidth();
         }
 
         // Y grid line
         painter.setPen(QPen(QColor(192, 192, 192), 1, Qt::SolidLine));
-        painter.drawLine(startX, y, startX + canvasSize.width(), y);
+        painter.drawLine(canvas.x1(), y, canvas.x2(), y);
 
-        y += dotSize.height();
+        y += canvas.dotHeight();
     }
 
     painter.setPen(QPen(QColor(192, 192, 192), 1, Qt::SolidLine));
-    painter.drawLine(x, startY, x, startY + canvasSize.height());
-    painter.drawLine(startX, y, startX + canvasSize.width(), y);
+    painter.drawLine(canvas.x2(), canvas.y1(), canvas.x2(), canvas.y2());
+    painter.drawLine(canvas.x1(), canvas.y2(), canvas.x2(), canvas.y2());
 }
 
 void QFontGlyphEditor::paintEvent(QPaintEvent *e) {
@@ -116,10 +113,12 @@ void QFontGlyphEditor::paintEvent(QPaintEvent *e) {
 }
 
 void QFontGlyphEditor::mousePressEvent(QMouseEvent *e) {
+    if (!editor_enabled) {
+        return;
+    }
     if (e->button() == Qt::LeftButton) {
-        if (editor_enabled) {
-            prev_sel_index = -1;
-            checkPoint(e->pos());
+        if (findPointInCanvas(e->pos(), prev_sel_point)) {
+            flipGlyphPoint(prev_sel_point);
             drag_started = true;
         }
     }
@@ -129,7 +128,14 @@ void QFontGlyphEditor::mouseMoveEvent(QMouseEvent *e) {
     Q_UNUSED(e);
 
     if (drag_started) {
-        checkPoint(e->pos());
+        QPoint cpt;
+        if (!findPointInCanvas(e->pos(), cpt)) {
+            return;
+        }
+        if (prev_sel_point != cpt) {
+            flipGlyphPoint(cpt);
+            prev_sel_point = cpt;
+        }
     }
 }
 
@@ -137,5 +143,30 @@ void QFontGlyphEditor::mouseReleaseEvent(QMouseEvent *e) {
     Q_UNUSED(e);
 
     drag_started = false;
+}
+
+void QFontGlyphEditor::resizeEvent(QResizeEvent *e) {
+    Q_UNUSED(e);
+
+    updateCanvasInfo();
+}
+
+void QFontGlyphEditor::wheelEvent(QWheelEvent *e) {
+    if (!hasGlyph()) {
+        return;
+    }
+    if (e->delta() > 0)  {
+        dot_width++; dot_height++;
+    } else {
+        dot_width--; dot_height--;
+    }
+    if (dot_width < MIN_DOT_WIDTH) {
+        dot_width = MIN_DOT_WIDTH;
+    }
+    if (dot_height < MIN_DOT_HEIGHT) {
+        dot_height = MIN_DOT_HEIGHT;
+    }
+    updateCanvasInfo();
+    repaint();
 }
 

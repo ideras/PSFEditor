@@ -323,11 +323,11 @@ public:
      *	font. Throw an exception on error.
      */
     PSFGlyph& getGlyph(unsigned int no) {
-        return glyphv[no]; // throw an exception if out of range
+        return glyphv.at(no); // throw an exception if out of range
     }
 
     const PSFGlyph& getGlyph(unsigned int no) const {
-        return glyphv[no]; // throw an exception if out of range
+        return glyphv.at(no); // throw an exception if out of range
     }
 
     /* addGlyph

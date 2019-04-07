@@ -22,7 +22,7 @@ namespace PSF {
 
     // Verilog MIF utilities
     bool saveToVerilogMif(const PSFFont& font, const std::string& filename);
-    bool loadFromVerilogMif(PSFFont& font, int gw, int gh, const std::string& filename);
+    bool loadFromVerilogMif(PSFFont& font, unsigned gw, unsigned gh, const std::string& filename);
 }
 
 Q_DECLARE_METATYPE(PSFGlyph*)

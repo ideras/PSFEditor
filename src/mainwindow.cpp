@@ -13,6 +13,7 @@
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
+    selectedFilter(""),
     ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
@@ -106,21 +107,20 @@ void MainWindow::on_glyphChanged()
 
 void MainWindow::updateFileInfo()
 {
-    QFileInfo fileInfo(currentFile.fileName());
+    QFileInfo fileInfo(currentFile);
     QString windowTitle = "Fixed Size Font editor - " + fileInfo.fileName();
 
     if (fileModified) {
         windowTitle += " *";
     }
 
-    statusBar()->showMessage(currentFile.fileName());
+    statusBar()->showMessage(fileInfo.filePath());
     setWindowTitle(windowTitle);
 }
 
 void MainWindow::on_actionOpenFontFile_triggered()
 {
     QFileDialog::Options options;
-    QString selectedFilter;
     QFileInfo fi(currentFile);
     QString currFilePath = fi.absolutePath();
 
@@ -141,8 +141,7 @@ void MainWindow::on_actionOpenFontFile_triggered()
         QMessageBox::information(this, "Error", "Unknown file '" + filePath + "'. Please select a MIF or PSF file");
         return;
     }
-    fi.setFile(filePath);
-    currentFile.setFileName(fi.absolutePath());
+    currentFile.setFileName(filePath);
 
     bool success;
     if (selectedFilter.contains("PSF")) {
@@ -203,9 +202,6 @@ bool MainWindow::saveFontToFile()
 
 void MainWindow::on_actionExport_VerilogMIF_triggered()
 {
-    QFileDialog::Options options;
-    QString selectedFilter;
-
     if (currentFile.fileName().isEmpty()) {
         return;
     }
@@ -214,9 +210,7 @@ void MainWindow::on_actionExport_VerilogMIF_triggered()
     QString filePath = QFileDialog::getSaveFileName(this,
                                  tr("Save as Verilog MIF"),
                                  fi.path(),
-                                 tr("Verilog MIF (*.mif);;All Files (*)"),
-                                 &selectedFilter,
-                                 options);
+                                 tr("Verilog MIF (*.mif);;All Files (*)"));
     if (filePath.isEmpty()) {
         return;
     }
@@ -239,9 +233,6 @@ void MainWindow::on_actionExport_VerilogMIF_triggered()
 
 void MainWindow::on_actionExport_PSFFile_triggered()
 {
-    QFileDialog::Options options;
-    QString selectedFilter;
-
     if (currentFile.fileName().isEmpty()) {
         return;
     }
@@ -250,9 +241,7 @@ void MainWindow::on_actionExport_PSFFile_triggered()
     QString filePath = QFileDialog::getSaveFileName(this,
                                  tr("Save as PSF file"),
                                  fi.path(),
-                                 tr("PSF files (*.psf);;All Files (*)"),
-                                 &selectedFilter,
-                                 options);
+                                 tr("PSF files (*.psf);;All Files (*)"));
 
     if (filePath.isEmpty()) {
         return;
