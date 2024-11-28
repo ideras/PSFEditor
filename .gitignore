@@ -27,3 +27,6 @@ Makefile
 
 # Visual studio code
 .vscode/*
+
+# Nix - `nix build`
+result
