@@ -21,6 +21,14 @@ Then
 make
 ```
 
+### Nix
+
+Providing flake.nix
+
+```bash
+nix run github:ideras/PSFEditor
+```
+
 ## Author
 
 * **Ivan de Jesus Deras**
