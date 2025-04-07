@@ -11,7 +11,7 @@
 #include "dlgsymbinfo.h"
 #include "psfutil.h"
 
-MainWindow::MainWindow(QWidget *parent) :
+MainWindow::MainWindow(QWidget *parent, const QString &filePath) :
     QMainWindow(parent),
     selectedFilter(""),
     ui(new Ui::MainWindow)
@@ -20,6 +20,27 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->listFontGlyphs->setItemDelegate(new QGlyphListWidgetItemDelegate);
     fileModified = false;
     connect(ui->widgetGlyphEditor, &QFontGlyphEditor::glyphChanged, this, &MainWindow::on_glyphChanged);
+
+    if (!filePath.isEmpty()) {
+      QFileInfo fi(filePath);
+      if (fi.exists()) {
+          currentFile.setFileName(filePath);
+
+          QString extension = fi.suffix().toLower();
+          if (extension == "psf") {
+              selectedFilter = "PSF file (*.psf)";
+          } else if (extension == "mif") {
+              selectedFilter = "Verilog MIF (*.mif)";
+          } else {
+              QMessageBox::warning(this, "Error", "Unsupported file type: " + extension);
+              return;
+          }
+
+          on_actionOpenFontFile_triggered();
+      } else {
+          QMessageBox::warning(this, "Error", "File does not exist: " + filePath);
+      }
+  }
 }
 
 MainWindow::~MainWindow() {
